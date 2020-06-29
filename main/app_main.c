@@ -25,7 +25,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#include "freertos/queue.h"
 
 #include "esp_system.h"
 #include "esp_log.h"
@@ -38,11 +37,9 @@
 #include "nvs_flash.h"
 #include "esp_event.h"
 #include "tcpip_adapter.h"
-
-#include "owb.h"
-#include "owb_rmt.h"
-#include "ds18b20.h"
 #include "mqtt_client.h"
+
+#include "main.h"
 #include "wifi.h"
 #include "mqtt.h"
 #include "ltft.h"
@@ -60,6 +57,22 @@ static void mqtt_app_start(void)
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
     esp_mqtt_client_start(client);
+}
+
+void read_sensor_task(void *pvParameters) {
+    char tmp_buff[64];
+    if (xSensorQ != 0)
+    {
+        struct SMsg *pxSMsg;
+        while(1) {
+            if (xQueueGenericReceive(xSensorQ, &(pxSMsg), (TickType_t)10, true))
+            {
+                sprintf(tmp_buff, "Sensor - %d, T: %.1f C", pxSMsg->sensorId, pxSMsg->temp);
+                TFT_print(tmp_buff, 10, 10 + (int)pxSMsg->sensorId * 10 + TFT_getfontheight());
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
+            }
+        }
+    }
 }
 
 _Noreturn void app_main()
@@ -108,9 +121,14 @@ _Noreturn void app_main()
     TFT_print("HeatingController", 10, 10);
     // -- end display --
 
-    owb_init();
+    xSensorQ = xQueueCreate(10, sizeof(struct SMsg *));
+    xTaskCreate(&read_sensor_task, "read_sensor_task", 2048, NULL, 5, NULL);
 
-    printf("Restarting now.\n");
+    owb_init(xSensorQ);
+    
+
+    ESP_LOGI(TAG, "App started");
+    
     fflush(stdout);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     esp_restart();

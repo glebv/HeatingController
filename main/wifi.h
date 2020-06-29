@@ -1,5 +1,6 @@
-// #ifndef __WIFI_H__
-// #define __WIFI_H__
+#ifndef __WIFI_H__
+#define __WIFI_H__
+
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -28,4 +29,4 @@ esp_err_t wifi_init_sta();
 void wifi_event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data);
 
-// #endif /* __WIFI_H__ */
+#endif /* __WIFI_H__ */

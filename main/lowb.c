@@ -1,13 +1,13 @@
 #include "lowb.h"
 
-void owb_init() {
-    // To debug, use 'make menuconfig' to set default Log level to DEBUG, then uncomment:
-    //esp_log_level_set("owb", ESP_LOG_DEBUG);
-    //esp_log_level_set("ds18b20", ESP_LOG_DEBUG);
+void owb_init(QueueHandle_t xSensorQ)
+{
+        // To debug, use 'make menuconfig' to set default Log level to DEBUG, then uncomment:
+        //esp_log_level_set("owb", ESP_LOG_DEBUG);
+        //esp_log_level_set("ds18b20", ESP_LOG_DEBUG);
 
-
-    // Create a 1-Wire bus, using the RMT timeslot driver
-    OneWireBus *owb;
+        // Create a 1-Wire bus, using the RMT timeslot driver
+        OneWireBus *owb;
     owb_rmt_driver_info rmt_driver_info;
     owb = owb_rmt_initialize(&rmt_driver_info, GPIO_DS18B20_0, RMT_CHANNEL_1, RMT_CHANNEL_0);
     owb_use_crc(owb, true); // enable CRC check for ROM code
@@ -52,12 +52,14 @@ void owb_init() {
     }
     else
     {
+
+        // TODO create a function to check all devices
         // Search for a known ROM code (LSB first):
-        // For example: 0x1502162ca5b2ee28
+        // For example: 0xba041761b0aaff28
         OneWireBus_ROMCode known_device = {
             .fields.family = {0x28},
-            .fields.serial_number = {0xee, 0xb2, 0xa5, 0x2c, 0x16, 0x02},
-            .fields.crc = {0x15},
+            .fields.serial_number = {0xff, 0xaa, 0xb0, 0x61, 0x17, 0x04},
+            .fields.crc = {0xba},
         };
         char rom_code_s[OWB_ROM_CODE_STRING_LENGTH];
         owb_string_from_rom_code(known_device, rom_code_s, sizeof(rom_code_s));
@@ -66,12 +68,13 @@ void owb_init() {
         owb_status search_status = owb_verify_rom(owb, known_device, &is_present);
         if (search_status == OWB_STATUS_OK)
         {
-            printf("Device %s is %s\n", rom_code_s, is_present ? "present" : "not present");
+            printf("Sensor 1  - %s is %s\n", rom_code_s, is_present ? "present" : "not present");
         }
         else
         {
             printf("An error occurred searching for known device: %d", search_status);
         }
+
     }
 
     // Create DS18B20 devices on the 1-Wire bus
@@ -155,12 +158,22 @@ void owb_init() {
             printf("\nTemperature readings (degrees C): sample %d\n", ++sample_count);
             for (int i = 0; i < num_devices; ++i)
             {
+                struct SMsg *pxSMsg;
                 if (errors[i] != DS18B20_OK)
                 {
                     ++errors_count[i];
                 }
 
                 printf("  %d: %.1f    %d errors\n", i, readings[i], errors_count[i]);
+
+                struct SMsg xSMsg = {
+                    .sensorId = i,
+                    .temp = readings[i],
+                    .time = esp_timer_get_time(),
+                };
+
+                pxSMsg = &xSMsg;
+                xQueueGenericSend(xSensorQ, (void *)&pxSMsg, (TickType_t)0, queueSEND_TO_BACK);
             }
 
             vTaskDelayUntil(&last_wake_time, SAMPLE_PERIOD / portTICK_PERIOD_MS);
