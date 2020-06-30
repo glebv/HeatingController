@@ -158,7 +158,6 @@ void owb_init(QueueHandle_t xSensorQ)
             printf("\nTemperature readings (degrees C): sample %d\n", ++sample_count);
             for (int i = 0; i < num_devices; ++i)
             {
-                struct SMsg *pxSMsg;
                 if (errors[i] != DS18B20_OK)
                 {
                     ++errors_count[i];
@@ -169,11 +168,11 @@ void owb_init(QueueHandle_t xSensorQ)
                 struct SMsg xSMsg = {
                     .sensorId = i,
                     .temp = readings[i],
-                    .time = esp_timer_get_time(),
+                    .time = esp_timer_get_time() / 1000,
                 };
 
-                pxSMsg = &xSMsg;
-                xQueueGenericSend(xSensorQ, (void *)&pxSMsg, (TickType_t)0, queueSEND_TO_BACK);
+                struct SMsg *pxSMsg = &xSMsg;
+                xQueueSend(xSensorQ, (void *)&pxSMsg, (TickType_t)0);
             }
 
             vTaskDelayUntil(&last_wake_time, SAMPLE_PERIOD / portTICK_PERIOD_MS);

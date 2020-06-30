@@ -65,11 +65,10 @@ void read_sensor_task(void *pvParameters) {
     {
         struct SMsg *pxSMsg;
         while(1) {
-            if (xQueueGenericReceive(xSensorQ, &(pxSMsg), (TickType_t)10, true))
+            if (xQueueReceive(xSensorQ, &(pxSMsg), (TickType_t)10) == pdTRUE)
             {
-                sprintf(tmp_buff, "Sensor - %d, T: %.1f C", pxSMsg->sensorId, pxSMsg->temp);
-                TFT_print(tmp_buff, 10, 10 + (int)pxSMsg->sensorId * 10 + TFT_getfontheight());
-                vTaskDelay(1000 / portTICK_PERIOD_MS);
+                sprintf(tmp_buff, "Sensor - %d, T: %.1f C, Time: %d", pxSMsg->sensorId, pxSMsg->temp, (int)pxSMsg->time);
+                TFT_print(tmp_buff, 10, 10 + (int)pxSMsg->sensorId * 15 + TFT_getfontheight());
             }
         }
     }
