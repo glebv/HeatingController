@@ -46,8 +46,9 @@
 #include "lowb.h"
 
 static const char *TAG = "MQTT_APP";
+static esp_mqtt_client_handle_t mqttClient;
 
-static void mqtt_app_start(void)
+static esp_mqtt_client_handle_t mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
         .uri = CONFIG_BROKER_URL,
@@ -57,6 +58,7 @@ static void mqtt_app_start(void)
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
     esp_mqtt_client_start(client);
+    return client;
 }
 
 void read_sensor_task(void *pvParameters) {
@@ -67,8 +69,18 @@ void read_sensor_task(void *pvParameters) {
         while(1) {
             if (xQueueReceive(xSensorQ, &(pxSMsg), (TickType_t)10) == pdTRUE)
             {
+                // display sensor valus on LCD
                 sprintf(tmp_buff, "Sensor - %d, T: %.1f C, Time: %d", pxSMsg->sensorId, pxSMsg->temp, (int)pxSMsg->time);
                 TFT_print(tmp_buff, 10, 10 + (int)pxSMsg->sensorId * 15 + TFT_getfontheight());
+
+                // send sensor value by MQTT
+                if (mqttClient) {
+                    char topic[64];
+                    sprintf(topic, "/room/sensor/%d", pxSMsg->sensorId);
+                    char data[10];
+                    sprintf(data, "%f", pxSMsg->temp);
+                    esp_mqtt_client_publish(mqttClient, topic, data, 0, 1, 0);
+                }
             }
         }
     }
@@ -102,7 +114,7 @@ _Noreturn void app_main()
 
     if (wifi_init_sta() == ESP_OK)
     {
-        mqtt_app_start();
+        mqttClient = mqtt_app_start();
     }
     else
     {
