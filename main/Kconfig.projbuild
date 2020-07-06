@@ -35,6 +35,10 @@ config MQTT_PASSWORD
     help
         Password to connect to mqtt broker.
 
+config MQTT_COMMON_TOPIC
+    string "common part of mqtt topic"
+    default "HeaterSystem"
+
 config ONE_WIRE_GPIO
     int "OneWire GPIO number"
 	range 0 33

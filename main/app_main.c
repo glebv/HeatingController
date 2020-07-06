@@ -76,10 +76,12 @@ void read_sensor_task(void *pvParameters) {
                 // send sensor value by MQTT
                 if (mqttClient) {
                     char topic[64];
-                    sprintf(topic, "/room/sensor/%d", pxSMsg->sensorId);
+                    sprintf(topic, "%s/sensor/%d", CONFIG_MQTT_COMMON_TOPIC, pxSMsg->sensorId);
+                    
                     char data[10];
                     sprintf(data, "%f", pxSMsg->temp);
                     esp_mqtt_client_publish(mqttClient, topic, data, 0, 1, 0);
+                    printf("TOPIC: %s DATA: %s\r\n", topic, data);
                 }
             }
         }
